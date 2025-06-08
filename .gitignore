@@ -1,3 +1,4 @@
 .env
+.idx
 input_pdfs/
 parsed_outputs/
