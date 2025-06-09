@@ -10,7 +10,7 @@ from langchain.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.chat_models import ChatOpenAI
-from langchain.schema import Document, SystemMessage, HumanMessage
+from langchain.schema import Document, SystemMessage, HumanMessage, AIMessage
 from langchain_community.document_compressors import FlashrankRerank
 
 
@@ -19,7 +19,7 @@ class RagReranker:
     A RAG wrapper with FlashRank reranking over Markdown files.
     Automatically loads an existing FAISS index from `<docs_dir>/.idx` if valid;
     otherwise builds the index from all `.md` files under `docs_dir`.
-    Provides methods to answer queries and share the source documents used.
+    Maintains conversation history and provides methods to answer queries and share source documents.
     """
 
     def __init__(
@@ -38,6 +38,8 @@ class RagReranker:
         self.k = k
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        # Initialize history as list of Messages
+        self.history: List[HumanMessage | AIMessage] = []
 
         # Prepare embeddings
         self.embedding = OpenAIEmbeddings(model=embedding_model)
@@ -106,12 +108,14 @@ class RagReranker:
     def answer_with_sources(self, query: str) -> Tuple[str, List[str]]:
         """
         Answer the query by retrieving, reranking, and passing context to the LLM.
+        Includes conversation history so that follow-up questions retain context.
         Returns a tuple of (answer_text, list_of_source_paths).
         """
+        # Retrieve docs
         docs = self.get_reranked(query)
         context = "\n\n".join(d.page_content for d in docs)
 
-        # Strict system prompt
+        # Build message sequence: system prompt, history, new query
         messages = [
             SystemMessage(
                 content=(
@@ -119,9 +123,27 @@ class RagReranker:
                     "Answer the question using ONLY the following context. "
                     "Do NOT use any external knowledge or assumptions beyond the context provided."
                 )
-            ),
-            HumanMessage(content=f"Context:\n{context}\n\nQuestion: {query}"),
+            )
         ]
-        resp = self.llm(messages)
+        # Append conversation history
+        messages.extend(self.history)
+        # User's new question
+        user_msg = HumanMessage(content=f"Context:\n{context}\n\nQuestion: {query}")
+        messages.append(user_msg)
+
+        # Call LLM
+        ai_resp: AIMessage = self.llm(messages)
+
+        # Update history: user and assistant
+        self.history.append(user_msg)
+        self.history.append(ai_resp)
+
+        # Extract sources
         sources = [doc.metadata.get("source", "") for doc in docs]
-        return resp.content, sources
+        return ai_resp.content, sources
+
+    def clear_history(self):
+        """
+        Clear the conversation history.
+        """
+        self.history = []

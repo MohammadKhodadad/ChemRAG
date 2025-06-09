@@ -1,0 +1,22 @@
+{
+  "name": "chem-rag-chat-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@mantine/core": "^6.0.0",
+    "@mantine/hooks": "^6.0.0",
+    "axios": "^1.0.0",
+    "@tabler/icons-react": "^2.0.0"
+  },
+  "devDependencies": {
+    "vite": "^4.0.0",
+    "@vitejs/plugin-react": "^4.0.0"
+  }
+}
