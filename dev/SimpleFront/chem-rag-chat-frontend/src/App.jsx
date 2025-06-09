@@ -36,22 +36,40 @@ export default function App() {
 
   const sendMessage = async () => {
     if (!query.trim()) return;
+
+    // 1. Create the new user message
     const userMsg = { role: 'user', content: query };
-    setMessages((m) => [...m, userMsg]);
+
+    // 2. Build the updated history including this turn
+    const newHistory = [...messages, userMsg];
+
+    // 3. Optimistically update UI
+    setMessages(newHistory);
     setQuery('');
     setLoading(true);
 
     try {
-      const resp = await axios.post('/ask', { query: userMsg.content });
+      // 4. Send query + full history to the backend
+      const resp = await axios.post('/ask', {
+        query: userMsg.content,
+        history: newHistory,
+      });
+
       const { answer, sources } = resp.data;
-      setMessages((m) => [
-        ...m,
+
+      // 5. Append assistant reply to messages
+      setMessages((prev) => [
+        ...prev,
         { role: 'assistant', content: answer, sources },
       ]);
     } catch {
-      setMessages((m) => [
-        ...m,
-        { role: 'assistant', content: 'Error fetching response.', sources: [] },
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Error fetching response.',
+          sources: [],
+        },
       ]);
     } finally {
       setLoading(false);
@@ -67,7 +85,7 @@ export default function App() {
           style={{
             maxHeight: '100vh',
             overflowY: 'auto',
-            backgroundColor: '#f5f7fa', // light grey
+            backgroundColor: '#f5f7fa',
           }}
         >
           {messages.map((m, i) => (

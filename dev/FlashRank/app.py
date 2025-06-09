@@ -1,9 +1,7 @@
-# app.py
-
 import os
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
-from utils.rag_reranker import RagReranker
+from utils.agent import AgentQA
 
 # Load environment variables from .env
 load_dotenv()
@@ -15,38 +13,44 @@ if not os.getenv("OPENAI_API_KEY"):
 # Initialize Flask app
 app = Flask(__name__)
 
-# Load or build the index on startup
-DOCS_DIR = os.getenv("DOCS_DIR", "..\DoclingTest\parsed_outputs")
+# Configuration via environment variables
+DOCS_DIR = os.getenv("DOCS_DIR", "../DoclingTest/parsed_outputs")
 EMBED_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
+AGENT_LLM_MODEL = os.getenv("AGENT_LLM_MODEL", LLM_MODEL)
 K = int(os.getenv("K", "20"))
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
 
-# Instantiate RagReranker
-rag = RagReranker(
+# Instantiate AgentQA with retrieval and reasoning capabilities
+agent = AgentQA(
     docs_dir=DOCS_DIR,
     embedding_model=EMBED_MODEL,
     llm_model=LLM_MODEL,
     k=K,
     chunk_size=CHUNK_SIZE,
     chunk_overlap=CHUNK_OVERLAP,
+    agent_llm_model=AGENT_LLM_MODEL
 )
 
 @app.route("/ask", methods=["POST"])
 def ask():
     """
-    Ask a question. Expects JSON with at least "query": str.
-    History should be handled client-side and passed in requests directly to the reranker if needed.
+    Ask a question. Expects JSON with:
+      - "query": str
+      - optional "history": List[{"role": str, "content": str}]
+    Uses AgentQA to decide whether to retrieve or answer directly.
     """
     data = request.get_json() or {}
     query = data.get("query")
-    print(data)
+    history = data.get("history", [])
+
     if not query:
         return jsonify({"error": "Missing 'query' in request body"}), 400
 
     try:
-        answer, sources = rag.answer_with_sources(query)
+        # Pass history through to the agent
+        answer, sources = agent.ask(query, history=history)
         return jsonify({
             "answer": answer,
             "sources": sources
@@ -55,5 +59,5 @@ def ask():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, threaded=True)
