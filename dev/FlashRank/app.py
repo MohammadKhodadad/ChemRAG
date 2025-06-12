@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
-from utils.agent import AgentQA
+from utils.agentqalangchain import AgentQA
 
 # Load environment variables from .env
 load_dotenv()
@@ -44,13 +44,15 @@ def ask():
     data = request.get_json() or {}
     query = data.get("query")
     history = data.get("history", [])
-
+    # print(data)
     if not query:
         return jsonify({"error": "Missing 'query' in request body"}), 400
 
     try:
         # Pass history through to the agent
         answer, sources = agent.ask(query, history=history)
+        print(answer)
+        print(sources)
         return jsonify({
             "answer": answer,
             "sources": sources
