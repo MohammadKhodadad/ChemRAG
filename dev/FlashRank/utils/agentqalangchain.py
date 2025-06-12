@@ -51,7 +51,7 @@ class AgentQA:
         self.agent = create_react_agent(
             model=f"openai:{agent_llm_model}",
             tools=[_rag_tool],
-            prompt="You are a helpful assistant. Your task is to answer user's query. Your response must be a python dict containing keys 'answer' and 'sources'. You must include the sources from rag tool in case you use it."
+            prompt="You are a helpful assistant. Your task is to answer user's query. Your response must be a python dict containing keys 'answer' and 'sources'. The value for 'answer' is a text string and the value for the 'sources' is a list. You must include the sources from rag tool in case you use it."
         )
 
     def ask(
